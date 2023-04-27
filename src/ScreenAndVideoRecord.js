@@ -1,5 +1,7 @@
 import React, { useRef, useState } from 'react';
 import RecordRTC from 'recordrtc';
+import { uploadBatchVideo,uploadBatchImages } from './uploadS3';
+import { storeImageData, storeVideoData } from './storeIndexedData';
 
 const ScreenRecorder = () => {
   const [recording, setRecording] = useState(false);
@@ -24,9 +26,8 @@ const ScreenRecorder = () => {
     }
   }
   
-
   const startRecording = async () => {
-    const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+    const screenStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
     const cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
     
     const videoTrack = cameraStream.getVideoTracks()[0];
@@ -48,13 +49,11 @@ const ScreenRecorder = () => {
     setRecording(true);
   };
 
-  const SyncEverything = () => {
-
-  }
   const takePhoto = () => {
     const videoTrack = cameraStream.getVideoTracks()[0];
     const imageCapture = new ImageCapture(videoTrack);
     imageCapture.takePhoto().then((blob) => {
+      storeImageData(blob);
       const imageUrl = URL.createObjectURL(blob);
       setCapturedImages([...capturedImages, imageUrl]);
     });
@@ -73,6 +72,7 @@ const ScreenRecorder = () => {
       setCameraStream(null);
       setRecorder(null);
       setRecording(false);
+      storeVideoData(blob);
       clearVideo()
     });
   };
@@ -82,14 +82,20 @@ const ScreenRecorder = () => {
       {!recording && !recordedVideoUrl && (
         <button onClick={startRecording}>Start Recording</button>
       )}
+
+      {!recording && !recordedVideoUrl && (
+        <button onClick={uploadBatchVideo}>Sync All Videos to S3</button>
+      )}
+      
+      {!recording && !recordedVideoUrl && (
+        <button onClick={uploadBatchImages}>Sync All Images to S3</button>
+      )}
+      
       {recording && (
         <button onClick={stopRecording}>Stop Recording</button>
       )}
       {recordedVideoUrl && (
         <button onClick={closeRecord}>Close</button>
-      )}
-      {recordedVideoUrl && (
-        <button onClick={SyncEverything}>Sync</button>
       )}
       {recordedVideoUrl && (
         <video  style={{ paddingTop: 20 }} src={recordedVideoUrl} controls autoPlay />
