@@ -1,12 +1,19 @@
 import ScreenRecorder from "./ScreenAndVideoRecord";
+import { createTheme, ThemeProvider } from '@mui/material/styles';
+
+const theme = createTheme({
+  spacing: 8, // set your desired spacing value
+  // your other theme options here
+});
+
 
 const App = () => {
   
 
   return (
-    <div>
+    <ThemeProvider theme={theme}>
       <ScreenRecorder/>
-    </div>
+      </ThemeProvider>
   );
 };
 

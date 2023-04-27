@@ -2,10 +2,22 @@ import React, { useRef, useState } from 'react';
 import RecordRTC from 'recordrtc';
 import { uploadBatchVideo,uploadBatchImages } from './uploadS3';
 import { storeImageData, storeVideoData } from './storeIndexedData';
+import Button from '@mui/material/Button';
+import { styled } from '@mui/material/styles';
+
+const ResponsiveButton = styled(Button)(({ theme }) => ({
+  width: '100%',
+  marginTop: theme.spacing(1),
+  marginBottom: theme.spacing(1),
+  [theme.breakpoints.up('sm')]: {
+    width: 'auto',
+    margin: theme.spacing(1),
+  },
+}));
+
 
 const ScreenRecorder = () => {
   const [recording, setRecording] = useState(false);
-  const [screenStream, setScreenStream] = useState(null);
   const [cameraStream, setCameraStream] = useState(null);
   const [recorder, setRecorder] = useState(null);
   const [recordedVideoUrl, setRecordedVideoUrl] = useState(null);
@@ -27,8 +39,8 @@ const ScreenRecorder = () => {
   }
   
   const startRecording = async () => {
-    const screenStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-    const cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+    const cameraStream = await navigator.mediaDevices.getUserMedia({ video: true,
+      audio: false });
     
     const videoTrack = cameraStream.getVideoTracks()[0];
 
@@ -37,11 +49,9 @@ const ScreenRecorder = () => {
     videoElem.muted = true;
     await videoElem.play();
 
-    const tracks = [...screenStream.getTracks(), ...cameraStream.getTracks()];
-    const mixedStream = new MediaStream(tracks);
+    const mixedStream = new MediaStream(cameraStream);
     
     const recorder = RecordRTC(mixedStream, { type: 'video', mimeType: 'video/webm' });
-    setScreenStream(screenStream);
     setCameraStream(cameraStream);
     setMixedStream(mixedStream);
     setRecorder(recorder);
@@ -63,11 +73,9 @@ const ScreenRecorder = () => {
     recorder.stopRecording(() => {
       const blob = recorder.getBlob();
       const url = URL.createObjectURL(blob);
-      screenStream.getTracks().forEach(track => track.stop());
       cameraStream.getTracks().forEach(track => track.stop());
       mixedStream.getTracks().forEach(track => track.stop());
       setRecordedVideoUrl(url);
-      setScreenStream(null);
       setMixedStream(null);
       setCameraStream(null);
       setRecorder(null);
@@ -80,22 +88,22 @@ const ScreenRecorder = () => {
   return (
     <div>
       {!recording && !recordedVideoUrl && (
-        <button onClick={startRecording}>Start Recording</button>
+        <ResponsiveButton variant="contained" onClick={startRecording}>Start Recording</ResponsiveButton>
       )}
 
       {!recording && !recordedVideoUrl && (
-        <button onClick={uploadBatchVideo}>Sync All Videos to S3</button>
+        <ResponsiveButton variant="contained" onClick={uploadBatchVideo}>Sync All Videos to S3</ResponsiveButton>
       )}
       
       {!recording && !recordedVideoUrl && (
-        <button onClick={uploadBatchImages}>Sync All Images to S3</button>
+        <ResponsiveButton variant="contained" onClick={uploadBatchImages}>Sync All Images to S3</ResponsiveButton>
       )}
       
       {recording && (
-        <button onClick={stopRecording}>Stop Recording</button>
+        <ResponsiveButton variant="contained" onClick={stopRecording}>Stop Recording</ResponsiveButton>
       )}
       {recordedVideoUrl && (
-        <button onClick={closeRecord}>Close</button>
+        <ResponsiveButton variant="contained" onClick={closeRecord}>Close</ResponsiveButton>
       )}
       {recordedVideoUrl && (
         <video  style={{ paddingTop: 20 }} src={recordedVideoUrl} controls autoPlay />
@@ -107,9 +115,10 @@ const ScreenRecorder = () => {
         ))}
       </div>
       {cameraStream && (
-        <button onClick={takePhoto}>Take Photo</button>
+        <ResponsiveButton variant="contained" onClick={takePhoto}>Take Photo</ResponsiveButton>
       )}
     </div>
+
   );
 };
 
