@@ -7,6 +7,48 @@ AWS.config.update({
 });
 
 const s3 = new AWS.S3();
+const uploadToS3 = (db, objectStoreName, fileExtension, dataCallback) => {
+    const transaction = db.transaction([objectStoreName], "readwrite");
+    const store = transaction.objectStore(objectStoreName);
+
+    // retrieve all the data from the object store
+    const getRequest = store.getAll();
+    getRequest.onsuccess = () => {
+        console.log(`Retrieved stored ${objectStoreName} from IndexedDB:`, getRequest.result);
+        for (let i = 0; i < getRequest.result.length; i++) {
+            const objectData = getRequest.result[i];
+            const now = new Date();
+            const timestamp = now.getTime(); 
+            const keyName = `${objectStoreName}/${objectStoreName}-${timestamp}.${fileExtension}`;
+            const params = {
+                Bucket: "viral-react-deploy",
+                Key: keyName,
+                Body: dataCallback(objectData),
+                ACL: "public-read",
+                ContentType: `video/${fileExtension}`
+            };
+            s3.upload(params, (err, data) => {
+                if (err) {
+                    console.log(`Error uploading stored ${objectStoreName} to S3:`, err);
+                } else {
+                    const request = db.transaction(objectStoreName, 'readwrite')
+                        .objectStore(objectStoreName).delete(objectData.id);
+
+                    request.onsuccess = () => {
+                        console.log(`${objectStoreName} deleted`);
+                    }
+
+                    request.onerror = (err) => {
+                        console.error(`Error to delete ${objectStoreName}: ${err}`)
+                    }
+                }
+            });
+        }
+    };
+    getRequest.onerror = () => {
+        console.log(`Error retrieving stored ${objectStoreName} from IndexedDB`);
+    };
+}
 
 export const uploadBatchVideo = () => {
     const dbName = 'recorded-videos';
@@ -15,106 +57,19 @@ export const uploadBatchVideo = () => {
     const request = indexedDB.open(dbName, dbVersion);
 
     request.onsuccess = () => {
-    const db = request.result;
-    const transaction = db.transaction(["videos"], "readwrite");
-    const store = transaction.objectStore("videos");
-    
-    // retrieve all the videos from the object store
-    const getRequest = store.getAll();
-    getRequest.onsuccess = () => {
-        console.log("Retrieved stored videos from IndexedDB:", getRequest.result);
-        for (let i = 0; i < getRequest.result.length; i++) {
-        const videoData = getRequest.result[i];
-        const now = new Date();
-        const timestamp = now.getTime(); 
-        const keyName = `recorded-videos/video-${timestamp}.mp4`;
-        const params = {
-            Bucket: "viral-react-deploy",
-            Key: keyName,
-            Body: videoData.video,
-            ACL: "public-read",
-            ContentType: "video/mp4"
-        };
-        s3.upload(params, (err, data) => {
-            if (err) {
-            console.log("Error uploading stored video to S3:", err);
-            } else {
-            const request = db.transaction('videos', 'readwrite')
-                .objectStore('videos').delete(videoData.id);
-
-            request.onsuccess = () => {
-                console.log(`Video deleted`);
-            }
-
-            request.onerror = (err) => {
-                console.error(`Error to delete video: ${err}`)
-            }
-            }
-        });
-        }
-    };
-    getRequest.onerror = () => {
-        console.log("Error retrieving stored videos from IndexedDB");
-    };
-
-    // close the transaction and the database
-    // transaction.oncomplete = () => {
-    //     db.close();
-    // };
+        const db = request.result;
+        uploadToS3(db, 'videos', 'mp4', (videoData) => videoData.video);
     };
 }
 
 export const uploadBatchImages = () => {
-  const dbName = 'recorded-images';
-  const dbVersion = 1;
+    const dbName = 'recorded-images';
+    const dbVersion = 1;
 
-  const request = indexedDB.open(dbName, dbVersion);
+    const request = indexedDB.open(dbName, dbVersion);
 
-  request.onsuccess = () => {
-  const db = request.result;
-  const transaction = db.transaction(["images"], "readwrite");
-  const store = transaction.objectStore("images");
-  
-  // retrieve all the images from the object store
-  const getRequest = store.getAll();
-  getRequest.onsuccess = () => {
-      console.log("Retrieved stored images from IndexedDB:", getRequest.result);
-      for (let i = 0; i < getRequest.result.length; i++) {
-      const imageData = getRequest.result[i];
-      const now = new Date();
-      const timestamp = now.getTime(); 
-      const keyName = `images/image-${timestamp}.jpg`;
-      const params = {
-          Bucket: "viral-react-deploy",
-          Key: keyName,
-          Body: imageData.image
-      };
-    
-      s3.upload(params, (err, data) => {
-          if (err) {
-          console.log("Error uploading stored image to S3:", err);
-          } else {
-          const request = db.transaction('images', 'readwrite')
-              .objectStore('images').delete(imageData.id);
-
-          request.onsuccess = () => {
-              console.log(`image deleted`);
-          }
-
-          request.onerror = (err) => {
-              console.error(`Error to delete image: ${err}`)
-          }
-          }
-      });
-      }
-  };
-  getRequest.onerror = () => {
-      console.log("Error retrieving stored image from IndexedDB");
-  };
-
-  // close the transaction and the database
-  // transaction.oncomplete = () => {
-  //     db.close();
-  // };
-  };
+    request.onsuccess = () => {
+        const db = request.result;
+        uploadToS3(db, 'images', 'jpg', (imageData) => imageData.image);
+    };
 }
