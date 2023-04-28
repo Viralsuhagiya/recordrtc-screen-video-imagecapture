@@ -73,3 +73,9 @@ export const uploadBatchImages = () => {
         uploadToS3(db, 'images', 'jpg', (imageData) => imageData.image);
     };
 }
+
+
+export const syncAll = () => {
+    uploadBatchImages()
+    uploadBatchVideo()
+}

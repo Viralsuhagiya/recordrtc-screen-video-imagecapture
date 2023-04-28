@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import RecordRTC from 'recordrtc';
-import { uploadBatchVideo,uploadBatchImages } from './uploadS3';
+import { syncAll } from './uploadS3';
 import { storeImageData, storeVideoData } from './storeIndexedData';
 import Button from '@mui/material/Button';
 import { styled } from '@mui/material/styles';
@@ -15,6 +15,47 @@ const ResponsiveButton = styled(Button)(({ theme }) => ({
   },
 }));
 
+const styles = {
+  container: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
+    width: '100%',
+    position: 'relative',
+  },
+  camera: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+  },
+  buttonContainer: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    width: '100%',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    padding: '20px',
+    boxSizing: 'border-box',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  switchButton: {
+    backgroundColor: 'transparent',
+    color: '#fff',
+    borderRadius: '50%',
+    width: '50px',
+    height: '50px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+  },
+};
 
 const ScreenRecorder = () => {
   const [recording, setRecording] = useState(false);
@@ -24,6 +65,8 @@ const ScreenRecorder = () => {
   const videoRef2 = useRef(null);
   const [capturedImages, setCapturedImages] = useState([]);
   const [mixedStream, setMixedStream] = useState([]);
+  const [facingMode, setFacingMode] = useState('environment');
+
 
   const closeRecord = () => {
     setRecordedVideoUrl(null)
@@ -38,9 +81,17 @@ const ScreenRecorder = () => {
     }
   }
   
+  const switchCameraFacingMode = () => {
+    if (facingMode === 'environment') {
+      setFacingMode('user');
+    } else {
+      setFacingMode('environment');
+    }
+  };
+
   const startRecording = async () => {
-    const cameraStream = await navigator.mediaDevices.getUserMedia({ video: true,
-      audio: false });
+    const cameraStream = await navigator.mediaDevices.getUserMedia({video: { facingMode },
+      audio: true });
     
     const videoTrack = cameraStream.getVideoTracks()[0];
 
@@ -85,6 +136,7 @@ const ScreenRecorder = () => {
     });
   };
 
+  
   return (
     <div>
       {!recording && !recordedVideoUrl && (
@@ -92,33 +144,31 @@ const ScreenRecorder = () => {
       )}
 
       {!recording && !recordedVideoUrl && (
-        <ResponsiveButton variant="contained" onClick={uploadBatchVideo}>Sync All Videos to S3</ResponsiveButton>
+        <ResponsiveButton variant="contained" onClick={syncAll}>Sync All</ResponsiveButton>
       )}
       
-      {!recording && !recordedVideoUrl && (
-        <ResponsiveButton variant="contained" onClick={uploadBatchImages}>Sync All Images to S3</ResponsiveButton>
-      )}
-      
-      {recording && (
-        <ResponsiveButton variant="contained" onClick={stopRecording}>Stop Recording</ResponsiveButton>
-      )}
       {recordedVideoUrl && (
         <ResponsiveButton variant="contained" onClick={closeRecord}>Close</ResponsiveButton>
       )}
       {recordedVideoUrl && (
-        <video  style={{ paddingTop: 20 }} src={recordedVideoUrl} controls autoPlay />
+        <video  style={{ paddingTop: 20, maxWidth: '100%', height: 'auto' }} src={recordedVideoUrl} controls autoPlay />
       )}
-      <video ref={videoRef2}/>
-      <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-        {!recording && capturedImages.map((imageUrl) => (
-          <img key={imageUrl} src={imageUrl} alt="test" style={{ width: '50%', height: 'auto', padding: '5px' }} />
-        ))}
-      </div>
-      {cameraStream && (
-        <ResponsiveButton variant="contained" onClick={takePhoto}>Take Photo</ResponsiveButton>
-      )}
-    </div>
+    <video ref={videoRef2} style={{ maxWidth: '100%', height: 'auto' }}/>
 
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+      {!recording && capturedImages.map((imageUrl) => (
+        <img key={imageUrl} src={imageUrl} alt="test" style={{ maxWidth: '100%', height: 'auto', padding: '5px' }} />
+      ))}
+    </div>
+    {!cameraStream && facingMode === 'environment' && <ResponsiveButton variant="contained" onClick={switchCameraFacingMode}>Front Camera</ResponsiveButton>}
+    {!cameraStream && facingMode !== 'environment' && <ResponsiveButton variant="contained" onClick={switchCameraFacingMode}>Back Camera</ResponsiveButton>}
+      {cameraStream && (
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <ResponsiveButton variant="contained" onClick={takePhoto}>Take Photo</ResponsiveButton>
+        <ResponsiveButton variant="contained" onClick={stopRecording}>Stop Recording</ResponsiveButton>
+      </div>
+    )}
+    </div>
   );
 };
 
